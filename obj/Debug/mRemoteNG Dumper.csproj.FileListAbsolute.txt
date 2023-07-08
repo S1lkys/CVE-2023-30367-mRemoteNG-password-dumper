@@ -1,0 +1,8 @@
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\bin\Debug\mRemoteNG Dumper.exe.config
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\bin\Debug\mRemoteNG Dumper.exe
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\bin\Debug\mRemoteNG Dumper.pdb
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\obj\Debug\mRemoteNG Dumper.csproj.AssemblyReference.cache
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\obj\Debug\mRemoteNG Dumper.csproj.SuggestedBindingRedirects.cache
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\obj\Debug\mRemoteNG Dumper.csproj.CoreCompileInputs.cache
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\obj\Debug\mRemoteNG Dumper.exe
+C:\Users\mbzra\source\repos\mRemoteNG Dumper\obj\Debug\mRemoteNG Dumper.pdb
